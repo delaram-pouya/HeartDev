@@ -27,6 +27,12 @@ Initialize <- function(){
 }
 
 
+get_args(){
+  options(echo=TRUE) # if you want see commands in output file
+  args <- commandArgs(trailingOnly = TRUE)
+  print(args)
+}
+
 
 colorPalatte <- c(
   "dodgerblue2", "#E31A1C", # red

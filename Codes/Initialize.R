@@ -1,29 +1,23 @@
 ## Run this script as: 
-# Rscript Codes/Init.R 'rat_Rnor' 50 1500
+# Rscript Codes/Initialize.R 'in_vivo' 12 1500
+
+
 
 options(echo=TRUE) # if you want see commands in output file
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
 
-INPUT_NAME = args[1] 
-MIT_CUT_OFF = as.numeric(args[2])
-LIB_SIZE_CUT_OFF = as.numeric(args[3])
-PC_NUMBER = 18
-MADS_CUT_OFF = 12
+INPUT_NAME = args[1]
 
+if(INPUT_NAME=='in_vivo'){MIT_CUT_OFF=as.numeric(args[2])
+}else if(INPUT_NAME=='in_vitro') {MADS_CUT_OFF = as.numeric(args[2])}
+
+LIB_SIZE_CUT_OFF = as.numeric(args[3])
+PC_NUMBER = 25
 
 source('Codes/Functions.R')
 Initialize()
 
-## Define cut-ff values
-# MIT_CUT_OFF = 50 
-# LIB_SIZE_CUT_OFF = 1500
-# INPUT_NAME = 'rat_Rnor'
-
-# MIT_CUT_OFF = median(seur$mito_perc) + mad(seur$mito_perc) * MADS_CUT_OFF
-TITLE = paste0('mito threshold: ', MIT_CUT_OFF,' , library size threshold: ', LIB_SIZE_CUT_OFF)
-OBJ_NAME_NORM = paste0('1.seur_normed_',INPUT_NAME,'_','mito_',MIT_CUT_OFF,'_lib_',LIB_SIZE_CUT_OFF,'.rds')
-OBJ_NAME_DIM_RED = paste0('2.seur_dimRed_',INPUT_NAME,'_','mito_',MIT_CUT_OFF,'_lib_',LIB_SIZE_CUT_OFF,'.rds')
 
 ## import the data
 input_from_10x <- paste0("Data/", INPUT_NAME,'/')
@@ -32,18 +26,23 @@ seur <- CreateSeuratObject(counts=Read10X(input_from_10x, gene.column = 1),
                            project = "snRNAseq")
 
 dim(seur)
-seur_genes_df <- read.delim(paste0(input_from_10x,'genes.tsv'), header = F)
+seur_genes_df <- read.delim(paste0(input_from_10x,'features.tsv.gz'), header = F)
 seur[['RNA']] <- AddMetaData(seur[['RNA']], seur_genes_df$V2, col.name = 'symbol')
 
-mito_genes_index <- grep(pattern = '^Mt-', seur[['RNA']]@meta.features$symbol )
+mito_genes_index <- grep(pattern = '^MT-', seur[['RNA']]@meta.features$symbol )
 seur[["mito_perc"]] <- PercentageFeatureSet(seur, features = mito_genes_index)
 
-## adding ensemble id as a meta data to the object
+if(INPUT_NAME=='in_vitro') MIT_CUT_OFF = round(median(seur$mito_perc) + mad(seur$mito_perc) * MADS_CUT_OFF, 3)
+
+
+TITLE = paste0('mito threshold: ', MIT_CUT_OFF,' , library size threshold: ', LIB_SIZE_CUT_OFF)
+OBJ_NAME_NORM = paste0('1.seur_normed_',INPUT_NAME,'_','mito_',MIT_CUT_OFF,'_lib_',LIB_SIZE_CUT_OFF,'.rds')
+OBJ_NAME_DIM_RED = paste0('2.seur_dimRed_',INPUT_NAME,'_','mito_',MIT_CUT_OFF,'_lib_',LIB_SIZE_CUT_OFF,'.rds')
+
 
 getHead(GetAssayData(seur@assays$RNA))
 libSize <- colSums(GetAssayData(seur@assays$RNA))
 summary(libSize)
-
 
 print(paste0('Total number of cells: ', ncol(seur)))
 
@@ -54,6 +53,7 @@ to_drop_lib_size <- seur$nCount_RNA < LIB_SIZE_CUT_OFF
 print(paste0('to_drop_lib_size: ', sum(to_drop_lib_size)))
 
 print(paste0('remained after both filters: ', sum(!to_drop_lib_size & !to_drop_mito)))
+print(paste0('removed after both filters: ', sum(to_drop_lib_size | to_drop_mito)))
 
 df = data.frame(library_size= seur$nCount_RNA, mito_perc=seur$mito_perc , n_expressed=seur$nFeature_RNA)
 
@@ -83,8 +83,8 @@ ggplot(df, aes(x=library_size, y=mito_perc, color=library_size))+geom_point()+sc
   geom_vline(xintercept = LIB_SIZE_CUT_OFF, linetype="dashed", color = "red3", size=0.5)+
   ggtitle(paste0('mito threshold: ', MIT_CUT_OFF,' , library size threshold: ', LIB_SIZE_CUT_OFF, ' (before filter)'))
 
-ggplot(df, aes(x=library_size, y=n_expressed, color=mito_perc))+geom_point()+labs(caption = INPUT_NAME)+
-  theme_bw()+xlab('Library Size')+ylab('Number of expressed genes')+scale_color_viridis(option = 'magma')+ggtitle('before filter')
+ggplot(df, aes(x=library_size, y=n_expressed, color=mito_perc))+geom_point(alpha=0.8)+labs(caption = INPUT_NAME)+
+  theme_bw()+xlab('Library Size')+ylab('Number of expressed genes')+scale_color_viridis(option = 'plasma',direction =-1)+ggtitle('before filter')
 
 ggplot(df, aes(x=library_size, y=n_expressed))+geom_point(color='darkblue')+theme_bw()+xlab('Library Size')+
   ylab('Number of expressed genes')+geom_point(data=df[to_drop_mito,],pch=4,color="red")+labs(caption = INPUT_NAME)+
@@ -104,21 +104,18 @@ ggplot(df_filt, aes(x=library_size, y=mito_perc, color=library_size))+geom_point
 
 ## Normalization
 ### SCTransform
-
-
-seur <- NormalizeData(seur, normalization.method = "LogNormalize", scale.factor = 10000)
-dim(seur[['RNA']]@data)
-
-## Finding variable genes
-seur <- FindVariableFeatures(seur, selection.method = "vst", nfeatures = 2000)
-head(seur[['RNA']]@var.features)
-
-## scaling data
-seur <- ScaleData(seur, features = rownames(seur))
+seur <- SCTransform(seur,conserve.memory=F,verbose=T,return.only.var.genes=F,variable.features.n = nrow(seur[['RNA']]))
+dim(seur)
 
 ## alternative: 
-# seur <- SCTransform(seur,conserve.memory=F,verbose=T,return.only.var.genes=F,variable.features.n = nrow(seur[['RNA']]))
-dim(seur)
+# seur <- NormalizeData(seur, normalization.method = "LogNormalize", scale.factor = 10000)
+# dim(seur[['RNA']]@data)
+# ## Finding variable genes
+# seur <- FindVariableFeatures(seur, selection.method = "vst", nfeatures = 2000)
+# head(seur[['RNA']]@var.features)
+# ## scaling data
+# seur <- ScaleData(seur, features = rownames(seur))
+
 saveRDS(seur, paste0('objects/',INPUT_NAME,'/',OBJ_NAME_NORM))
 
 ##  PCA
