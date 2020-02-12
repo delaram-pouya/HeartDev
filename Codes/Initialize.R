@@ -1,8 +1,6 @@
 ## Run this script as: 
 # Rscript Codes/Initialize.R 'in_vivo' 12 1500
 
-
-
 options(echo=TRUE) # if you want see commands in output file
 args <- commandArgs(trailingOnly = TRUE)
 print(args)
@@ -17,6 +15,8 @@ PC_NUMBER = 25
 
 source('Codes/Functions.R')
 Initialize()
+
+
 
 
 ## import the data
