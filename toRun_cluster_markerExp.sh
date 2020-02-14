@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd ~/HeartDev/
 for input_name in in_vivo in_vitro; do
   for input_file in objects/${input_name}/2.seur_dimRed_* ; do 
     echo ${input_name}

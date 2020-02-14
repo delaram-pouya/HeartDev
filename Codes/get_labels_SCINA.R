@@ -34,6 +34,3 @@ rownames(SCINA_res$probabilities)
 table(SCINA_res$cell_labels)
 saveRDS(SCINA_res, paste0('Results/',INPUT_NAME,'/SCINA/','SCINA_',OUTPUT_NAME,'.rds'))
 
-
-
-

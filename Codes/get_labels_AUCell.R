@@ -22,6 +22,7 @@ exprMatrix <- as.matrix(seur[['RNA']]@data)
 ### importing expression matrix and list of markers
 candidateGenes_mapped_df <- readRDS('Data/cardiac_markers_ensembl_mapped_table.rds')
 candidateGenes_mapped <- lapply(candidateGenes_mapped_df, function(x) getUnemptyList(x$ensembl_gene_id))
+candidateGenes_not_included <- lapply(candidateGenes_mapped, function(x) x[!x %in% rownames(seur)])
 candidateGenes_mapped <- lapply(candidateGenes_mapped, function(x) x[x %in% rownames(seur)])
 
 
@@ -30,7 +31,7 @@ candidateGenes_mapped <- lapply(candidateGenes_mapped, function(x) x[x %in% rown
 AUCell_dir = paste0("Results/",INPUT_NAME,"/AUCell/")
 
 
-gmtFile <- paste0(PATH_TO_FILES,"liver_cell_type_signature_gene_sets_ensemble.gmt")
+gmtFile <- paste0('Data/cardiac_markers_ensembl.gmt')
 geneSets <- getGmt(gmtFile)
 
 all_markers <- as.character(unlist(candidateGenes_mapped))
@@ -43,10 +44,7 @@ geneSets <- setGeneSetNames(geneSets, newNames=paste(names(geneSets), " (", nGen
 
 
 ## build gene expression ranking for each cell
-cells_rankings <- AUCell_buildRankings(exprMatrix, nCores=8, plotStats=TRUE)
-
 cells_rankings <- AUCell_buildRankings(exprMatrix, nCores=detectCores()-1, plotStats=TRUE)
-
 saveRDS(cells_rankings, paste0(AUCell_dir,"cells_rankings_",OUTPUT_NAME,".rds" ))
 
 # Calculate enrichment for the gene signatures (AUC)
@@ -73,48 +71,5 @@ saveRDS(cells_assignment, file=paste0(AUCell_dir, "cells_assignment_",OUTPUT_NAM
 
 Cell_type_assigned <- sapply(1:length(cells_assignment), function(i) cells_assignment[[i]][['assignment']], simplify = F)
 names(Cell_type_assigned) <- names(cells_assignment)
-
-
-
-
-# ### AUC threshold need to be changes -> need higher AUC threshold for Hepatocytes
-# getThresholdSelected(cells_assignment)
-# 
-# names(cells_assignment)
-# cells_assignment[['HEPATOCYTE (6g)']][['aucThr']][['thresholds']]
-# 
-# 
-# 
-# cellsAssigned <- lapply(cells_assignment, function(x) x$assignment)
-# assignmentTable <- reshape2::melt(cellsAssigned, value.name="cell")
-# colnames(assignmentTable)[2] <- "geneSet"
-# head(assignmentTable)
-# assignmentMat <- table(assignmentTable[,"geneSet"], assignmentTable[,"cell"])
-# assignmentMat[,1:2]
-# 
-# #### read through the pipeline and actually think about it!!!
-# #### check the functions one bu one
-# 
-# ### Check the AUC plots >>> do they make sense 
-# set.seed(123)
-# par(mfrow=c(4,3)) 
-# cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=TRUE, assign=TRUE) 
-# 
-# 
-# ### plot on tSNE based on the thresholds for each of the cell types 
-# warningMsg <- sapply(cells_assignment, function(x) x$aucThr$comment)
-# warningMsg[which(warningMsg!="")]
-# 
-# ## deliving into the output object data structures
-# names(cells_assignment)
-# names(cells_assignment[['CHOLANGIOCYTES (25g)']])
-# names(cells_assignment[['CHOLANGIOCYTES (25g)']][['aucThr']])
-# cells_assignment[['CHOLANGIOCYTES (25g)']][['aucThr']][['selected']]
-
-
-
-
-
-
 
 
