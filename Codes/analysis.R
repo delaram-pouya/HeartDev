@@ -78,3 +78,6 @@ for (i in 1:length(Markers)){
   print(Plot.tsne.gene.expr(tsne.gene.df, GENE_NAME))
 }
 dev.off()
+
+
+
